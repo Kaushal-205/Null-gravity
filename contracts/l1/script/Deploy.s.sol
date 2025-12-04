@@ -103,10 +103,10 @@ contract Deploy is Script {
  */
 contract DeployTestnet is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        // uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         bytes32 l2BridgeAddress = vm.envOr("L2_BRIDGE_ADDRESS", bytes32(uint256(0x1234)));
 
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
 
         // Deploy with lower stake for testing
         BLSVerifier blsVerifier = new BLSVerifier();
