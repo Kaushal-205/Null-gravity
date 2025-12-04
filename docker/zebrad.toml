@@ -1,0 +1,57 @@
+# Zebrad Configuration for Null-Gravity Bridge
+# https://doc.zebra.zfnd.org/zebrad/config/
+
+[consensus]
+# Checkpoint sync for faster initial sync
+checkpoint_sync = true
+
+[mempool]
+# Enable mempool for transaction broadcasting
+eviction_memory_time = "1h"
+tx_cost_limit = 80000000
+
+[metrics]
+# Prometheus metrics endpoint
+endpoint_addr = "0.0.0.0:9999"
+
+[network]
+# Network configuration
+# Options: "Mainnet", "Testnet", "Regtest"
+network = "Regtest"
+
+# Listen for peer connections
+listen_addr = "0.0.0.0:18233"
+
+# Initial peer connections (for testnet/mainnet)
+# initial_mainnet_peers = [
+#     "dnsseed.z.cash:8233",
+#     "dnsseed.str4d.xyz:8233",
+#     "mainnet.seeder.zfnd.org:8233",
+# ]
+
+[rpc]
+# JSON-RPC server configuration
+listen_addr = "0.0.0.0:18232"
+
+# Enable all RPC methods
+# In production, restrict to necessary methods
+parallel_cpu_threads = 0
+
+[state]
+# State storage configuration
+cache_dir = "/home/zebra/.cache/zebra"
+
+# Ephemeral mode for testing (data not persisted)
+# ephemeral = true
+
+[sync]
+# Sync configuration
+checkpoint_verify_concurrency_limit = 1000
+download_concurrency_limit = 50
+full_verify_concurrency_limit = 20
+parallel_cpu_threads = 0
+
+[tracing]
+# Logging configuration
+endpoint_addr = "0.0.0.0:3000"
+

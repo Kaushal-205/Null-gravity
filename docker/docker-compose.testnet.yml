@@ -1,0 +1,73 @@
+version: "3.8"
+
+# Testnet Configuration - Uses Public RPC Endpoints
+#
+# This override file configures the bridge to use public Zcash infrastructure
+# instead of running local nodes. Ideal for testnet/mainnet deployments.
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.testnet.yml up -d
+#
+# Required Environment Variables:
+#   - VAULT_VIEWING_KEY: Your vault's viewing key
+#   - VAULT_ADDRESS: Your vault's shielded address
+#   - SERVICE_MANAGER_ADDRESS: Deployed ServiceManager contract
+#   - OPERATOR_PRIVATE_KEY: Your operator's private key
+#   - L1_RPC_URL: Ethereum RPC (e.g., Infura, Alchemy)
+
+services:
+  # Disable local zebrad - use public endpoints instead
+  zebrad:
+    profiles:
+      - disabled
+
+  # Disable local lightwalletd - use public endpoints instead  
+  lightwalletd:
+    profiles:
+      - disabled
+
+  # Sentinel configured for public endpoints
+  sentinel:
+    environment:
+      # Public Lightwalletd Endpoints (choose one):
+      #
+      # Mainnet:
+      #   - lightwalletd.zecpages.com:443 (community)
+      #   - lwd1.zcash-infra.com:9067 (Zcash Foundation)
+      #   - lwd2.zcash-infra.com:9067 (Zcash Foundation)
+      #
+      # Testnet:
+      #   - lightwalletd.testnet.electriccoin.co:9067
+      #   - testnet.lightwalletd.com:9067
+      #
+      - LIGHTWALLETD_URL=${LIGHTWALLETD_URL:-https://lightwalletd.zecpages.com:443}
+      
+      # Ethereum Testnet RPC (Sepolia)
+      - L1_RPC_URL=${L1_RPC_URL:-https://sepolia.infura.io/v3/YOUR_KEY}
+      
+      # Network configuration
+      - ZCASH_NETWORK=${ZCASH_NETWORK:-testnet}
+      - CONFIRMATION_DEPTH=${CONFIRMATION_DEPTH:-20}
+      
+      # Vault configuration (required)
+      - VAULT_VIEWING_KEY=${VAULT_VIEWING_KEY}
+      - VAULT_ADDRESS=${VAULT_ADDRESS}
+      - SERVICE_MANAGER_ADDRESS=${SERVICE_MANAGER_ADDRESS}
+      - OPERATOR_PRIVATE_KEY=${OPERATOR_PRIVATE_KEY}
+    profiles:
+      - default
+    depends_on: []  # No local dependencies
+
+  # Anvil disabled for testnet - use real Ethereum testnet
+  anvil:
+    profiles:
+      - disabled
+
+  # Aztec Sandbox configured for testnet
+  aztec-sandbox:
+    environment:
+      # Use Sepolia testnet
+      - ETHEREUM_HOST=${L1_RPC_URL:-https://sepolia.infura.io/v3/YOUR_KEY}
+      - CHAIN_ID=11155111  # Sepolia chain ID
+    depends_on: []  # No local dependencies
+

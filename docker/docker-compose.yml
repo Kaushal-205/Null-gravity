@@ -1,0 +1,152 @@
+version: "3.8"
+
+# Null-Gravity Bridge - Docker Compose Configuration
+#
+# Supports multiple modes:
+#   1. Local development with zebrad (default)
+#   2. Public RPC endpoints (no local Zcash node)
+#   3. Testnet with public lightwalletd
+#
+# Usage:
+#   Local dev:     docker-compose up -d
+#   Public RPC:    docker-compose --profile public-rpc up -d
+#   Testnet:       docker-compose -f docker-compose.yml -f docker-compose.testnet.yml up -d
+
+services:
+  # ============================================================
+  # Zebrad - Modern Zcash Full Node (replaces deprecated zcashd)
+  # ============================================================
+  zebrad:
+    image: zfnd/zebrad:latest
+    container_name: zebrad
+    volumes:
+      - zebra-data:/home/zebra/.cache/zebra
+      - ./zebrad.toml:/etc/zebrad/zebrad.toml:ro
+      - ./scripts:/scripts:ro
+    ports:
+      - "18232:18232" # RPC port
+      - "18233:18233" # P2P port
+    environment:
+      - RUST_LOG=info
+    command: [ "--config", "/etc/zebrad/zebrad.toml" ]
+    healthcheck:
+      test: [ "CMD", "curl", "-sf", "http://localhost:18232/getinfo" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks:
+      - bridge-network
+    profiles:
+      - local
+      - default
+
+  # ============================================================
+  # Lightwalletd - gRPC API for Zcash (works with zebrad)
+  # ============================================================
+  lightwalletd:
+    image: electriccoinco/lightwalletd:latest
+    container_name: lightwalletd
+    depends_on:
+      zebrad:
+        condition: service_healthy
+    environment:
+      - ZCASHD_RPCUSER=zcashrpc
+      - ZCASHD_RPCPASSWORD=zcashrpcpassword
+      - ZCASHD_RPCHOST=zebrad
+      - ZCASHD_RPCPORT=18232
+    ports:
+      - "9067:9067" # gRPC port
+    command: [ "--no-tls-very-insecure", "--grpc-bind-addr=0.0.0.0:9067", "--zcash-conf-path=/etc/lightwalletd/zcash.conf", "--data-dir=/var/lib/lightwalletd/db", "--log-file=/dev/stdout" ]
+    volumes:
+      - lightwalletd-data:/var/lib/lightwalletd/db
+      - ./lightwalletd.conf:/etc/lightwalletd/zcash.conf:ro
+    networks:
+      - bridge-network
+    profiles:
+      - local
+      - default
+
+  # ============================================================
+  # Anvil - Local Ethereum L1 (Foundry)
+  # ============================================================
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: anvil
+    entrypoint: [ "anvil" ]
+    command: [ "--host", "0.0.0.0", "--port", "8545", "--chain-id", "31337", "--accounts", "10", "--balance", "10000", "--block-time", "1", "--gas-limit", "30000000" ]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: [ "CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - bridge-network
+
+  # ============================================================
+  # Aztec Sandbox - Local Aztec L2 with prover
+  # ============================================================
+  aztec-sandbox:
+    image: aztecprotocol/aztec:3.0.0-nightly.20251204-amd64
+    container_name: aztec-sandbox
+    command: start --local-network
+    environment:
+      - DEBUG=aztec:*
+      - ETHEREUM_HOSTS=http://anvil:8545
+      - CHAIN_ID=31337
+      - ARCHIVER_POLLING_INTERVAL_MS=500
+      - P2P_BLOCK_CHECK_INTERVAL_MS=100
+      - SEQ_TX_POLLING_INTERVAL_MS=100
+      - WS_BLOCK_CHECK_INTERVAL_MS=100
+      - PXE_BLOCK_POLLING_INTERVAL_MS=500
+      - ARCHIVER_VIEM_POLLING_INTERVAL_MS=500
+    ports:
+      - "8080:8080" # PXE port
+      - "8079:8079" # Aztec node port
+    depends_on:
+      anvil:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - bridge-network
+
+  # ============================================================
+  # Sentinel AVS - Bridge Operator Service
+  # ============================================================
+  sentinel:
+    build:
+      context: ../sentinel
+      dockerfile: Dockerfile
+    container_name: sentinel
+    environment:
+      - RUST_LOG=sentinel=info
+      - LIGHTWALLETD_URL=${LIGHTWALLETD_URL:-http://lightwalletd:9067}
+      - L1_RPC_URL=${L1_RPC_URL:-http://anvil:8545}
+      - VAULT_VIEWING_KEY=${VAULT_VIEWING_KEY}
+      - VAULT_ADDRESS=${VAULT_ADDRESS}
+      - SERVICE_MANAGER_ADDRESS=${SERVICE_MANAGER_ADDRESS}
+      - OPERATOR_PRIVATE_KEY=${OPERATOR_PRIVATE_KEY}
+      - CONFIRMATION_DEPTH=${CONFIRMATION_DEPTH:-10}
+      - ZCASH_NETWORK=${ZCASH_NETWORK:-regtest}
+    depends_on:
+      - anvil
+    networks:
+      - bridge-network
+    profiles:
+      - sentinel
+    restart: unless-stopped
+
+volumes:
+  zebra-data:
+  lightwalletd-data:
+
+
+networks:
+  bridge-network:
+    driver: bridge

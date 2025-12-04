@@ -1,0 +1,56 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Secrets
+*.key
+*.pem
+secrets/
+
+# Build outputs
+contracts/l1/out/
+contracts/l1/cache/
+contracts/l1/broadcast/
+contracts/l2/target/
+sentinel/target/
+cli/dist/
+cli/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker/.vault-config
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Foundry
+cache/
+out/
+
+# Noir
+contracts/l2/proofs/
+contracts/l2/Prover.toml
+contracts/l2/Verifier.toml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
